@@ -237,7 +237,8 @@
            (entities-docs (erlang-info--get-entities-docs docs-chunk))
            prev)
       ;;(message "reading %S" docs-chunk)
-      (insert (erlang-info--pick-doc-language module-doc) "\n\n")
+      (erlang-info--insert-markdown (erlang-info--pick-doc-language module-doc))
+      (insert "\n\n")
       (insert "* Menu:\n\n")
       (dolist (e entities-docs)
         (let ((doc (nth 4 e)))
@@ -268,7 +269,9 @@
           (insert kind "\n\n")
           (dolist (signature signatures)
             (insert signature "\n"))
-          (insert "\n" (erlang-info--pick-doc-language doc) "\n\n"))))))
+          (insert "\n")
+          (erlang-info--insert-markdown (erlang-info--pick-doc-language doc))
+          (insert "\n\n"))))))
 
 (defun erlang-info--get-module-doc (docs-chunk)
   (nth 5 docs-chunk))
@@ -305,6 +308,24 @@
          (name (nth 2 kind-name-arity))
          (arity (nth 3 kind-name-arity)))
     (format "%s/%s" name arity)))
+
+(defun erlang-info--insert-markdown (s)
+  (let ((beg (point)))
+    (insert s)
+    (save-excursion
+      (with-restriction beg (point)
+        ;; Convert Markdown titles to Info format
+        (goto-char (point-min))
+        (while (re-search-forward "^\\(#+\\) \\(.*$\\)" nil t)
+          (let ((title-level (- (match-end 1) (match-beginning 1)))
+                (title-length (- (match-end 2) (match-beginning 2))))
+            (replace-match "\\2" t)
+            (insert "\n" (make-string title-length
+                                      (cl-case title-level
+                                        (1 ?*)
+                                        (2 ?=)
+                                        (3 ?-)
+                                        (t ?.))))))))))
 
 (defun erlang-info--get-docs-chunk (filename)
   "Return the parsed Docs chunk of FILENAME.
