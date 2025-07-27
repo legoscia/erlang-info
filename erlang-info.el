@@ -187,6 +187,8 @@
     (insert "Filename: " filename "\nOther node: " nodename))))
 
 (defun erlang-info-top-node ()
+  ;; Hide references in module list
+  (setq-local Info-hide-note-references t)
   (insert "\^_\nNode: Top\n\n"
           "Erlang module documentation in Info format.\n\n")
   (insert-button "View documentation for module..."
@@ -220,6 +222,8 @@
      :test 'equal)))
 
 (defun erlang-info-beam-find-node (filename _nodename &optional _no-going-back)
+  ;; Don't add "see" before links
+  (setq-local Info-hide-note-references 'hide)
   ;;(message "looking for %S" nodename)
   (let ((docs-chunk (erlang-info--get-docs-chunk filename)))
     (insert "\^_\nNode: Top,  Up: ")
@@ -325,7 +329,57 @@
                                         (1 ?*)
                                         (2 ?=)
                                         (3 ?-)
-                                        (t ?.))))))))))
+                                        (t ?.))))))
+        ;; Convert Markdown links, when they point to modules or functions
+        (goto-char (point-min))
+        (while (re-search-forward "\\(?:\\[\\([^]\n]+\\)\\](`\\([^` \n]+\\))\\)\\|`\\([^` \n]+\\)`\\([.,]\\)?" nil t)
+          (let* ((label (match-string 1))
+                 (target (or (match-string 2) (match-string 3)))
+                 (target-node-spec (erlang-info--link-node-spec target))
+                 (final-dot-or-comma (match-string 4)))
+            (when target-node-spec
+              (if label
+                  (replace-match (format "*note %s:%s%s"
+                                         (erlang-info--cross-xref-label label)
+                                         target-node-spec
+                                         (or final-dot-or-comma ","))
+                                 nil t)
+                (replace-match (format "*note %s::%s"
+                                       target-node-spec
+                                       (or final-dot-or-comma "")))))))))))
+
+(defun erlang-info--link-node-spec (target)
+  (let ((case-fold-search nil))
+    (save-match-data
+      (cond
+       ((string-match "^[a-z][^:./]*/[0-9]+$" target)
+        ;; Link to a local function, e.g. "foo/1".
+        ;; First character must be a lower-case character, to avoid false positives
+        target)
+       ((string-match "^\\(?:[ct]:\\)?\\([^:/]+\\)[:.]\\([^:./]+/[0-9]+\\)$" target)
+        ;; Link to a remote function, e.g. "foo:bar/1"
+        ;; Or a link to a remote type or callback, prefixed with "c:" or "t:"
+        (format "(*Erlang-%s)%s" (match-string 1 target) (match-string 2 target)))
+       ((string-match "^m:\\([^:/]+\\)$" target)
+        ;; Link to a module, e.g. "m:foo"
+        (format "(*Erlang-%s)Top" (match-string 1 target)))
+       (t
+        ;; Something else.  Let's not try to make a link out of it.
+        nil)))))
+
+(defun erlang-info--cross-xref-label (label)
+  ;; In theory, cross-reference labels with colons should be quoted
+  ;; with <del> characters (aka ^?), according to:
+  ;; (info "(texinfo)Info Format Cross Reference")
+  ;; But it turns out it's only supported by the stand-alone Info
+  ;; reader, not by the one inside Emacs.
+  ;;
+  ;; Let's work around that by turning colons into something similar
+  ;; but different.
+  (replace-regexp-in-string
+   ":"
+   (string #xff1a) ;; U+FF1A FULLWIDTH COLON
+   label))
 
 (defun erlang-info--get-docs-chunk (filename)
   "Return the parsed Docs chunk of FILENAME.
