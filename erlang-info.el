@@ -115,15 +115,17 @@
    ;; We can find an Elixir executable, and from it find the Elixir lib directory
    (unless erlang-info--looked-for-elixir-lib-dir
      (let ((elixir-lib-dir (erlang-info--find-lib-dir "elixir" "elixir")))
-       (setq erlang-info--looked-for-elixir-lib-dir t)
-       (add-to-list 'erlang-info--beam-path elixir-lib-dir)
-       (erlang-info--find-beam-file-in-dir module elixir-lib-dir)))
+       (unless (or (null elixir-lib-dir) (string-equal "" elixir-lib-dir))
+         (setq erlang-info--looked-for-elixir-lib-dir t)
+         (add-to-list 'erlang-info--beam-path elixir-lib-dir)
+         (erlang-info--find-beam-file-in-dir module elixir-lib-dir))))
    ;; We can find an Erlang executable, and from it find the Erlang lib directory
    (unless erlang-info--looked-for-erlang-lib-dir
      (let ((erlang-lib-dir (erlang-info--find-lib-dir "erl" "erlang")))
-       (setq erlang-info--looked-for-erlang-lib-dir t)
-       (add-to-list 'erlang-info--beam-path erlang-lib-dir)
-       (erlang-info--find-beam-file-in-dir module erlang-lib-dir)))
+       (unless (or (null erlang-lib-dir) (string-equal "" erlang-lib-dir))
+         (setq erlang-info--looked-for-erlang-lib-dir t)
+         (add-to-list 'erlang-info--beam-path erlang-lib-dir)
+         (erlang-info--find-beam-file-in-dir module erlang-lib-dir))))
    ;; We can ask the user where the beam file is
    (when interactivep
      (let* ((beam-file (read-file-name
