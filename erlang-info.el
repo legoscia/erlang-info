@@ -149,13 +149,19 @@
       (let ((installation-dir
              (string-trim
               (with-output-to-string
-                (call-process "asdf" nil (list standard-output nil) nil "where" asdf-name)))))
+                (call-process executable nil (list standard-output nil) nil "where" asdf-name)))))
         (when (and (not (string-empty-p installation-dir)) (file-directory-p installation-dir))
           (let ((lib-dir (concat installation-dir "/lib")))
             (when (file-directory-p lib-dir)
               lib-dir)))))
+     ;; We can use 'erl' to tell us where its lib-dir is
+     ((string-equal executable-name "erl")
+      (string-trim
+       (with-output-to-string
+         (call-process executable-name nil (list standard-output nil) nil
+                       "-noshell" "-eval" "io:put_chars(code:lib_dir()), erlang:halt(0)."))))
      (t
-      ;; We found an executable and we're not using ASDF
+      ;; We found an executable elixir we're not using ASDF
       ;; TODO: handle this case
       nil))))
 
