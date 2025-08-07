@@ -115,15 +115,17 @@
    ;; We can find an Elixir executable, and from it find the Elixir lib directory
    (unless erlang-info--looked-for-elixir-lib-dir
      (let ((elixir-lib-dir (erlang-info--find-lib-dir "elixir" "elixir")))
-       (setq erlang-info--looked-for-elixir-lib-dir t)
-       (add-to-list 'erlang-info--beam-path elixir-lib-dir)
-       (erlang-info--find-beam-file-in-dir module elixir-lib-dir)))
+       (unless (or (null elixir-lib-dir) (string-equal "" elixir-lib-dir))
+         (setq erlang-info--looked-for-elixir-lib-dir t)
+         (add-to-list 'erlang-info--beam-path elixir-lib-dir)
+         (erlang-info--find-beam-file-in-dir module elixir-lib-dir))))
    ;; We can find an Erlang executable, and from it find the Erlang lib directory
    (unless erlang-info--looked-for-erlang-lib-dir
      (let ((erlang-lib-dir (erlang-info--find-lib-dir "erl" "erlang")))
-       (setq erlang-info--looked-for-erlang-lib-dir t)
-       (add-to-list 'erlang-info--beam-path erlang-lib-dir)
-       (erlang-info--find-beam-file-in-dir module erlang-lib-dir)))
+       (unless (or (null erlang-lib-dir) (string-equal "" erlang-lib-dir))
+         (setq erlang-info--looked-for-erlang-lib-dir t)
+         (add-to-list 'erlang-info--beam-path erlang-lib-dir)
+         (erlang-info--find-beam-file-in-dir module erlang-lib-dir))))
    ;; We can ask the user where the beam file is
    (when interactivep
      (let* ((beam-file (read-file-name
@@ -147,13 +149,19 @@
       (let ((installation-dir
              (string-trim
               (with-output-to-string
-                (call-process "asdf" nil (list standard-output nil) nil "where" asdf-name)))))
+                (call-process executable nil (list standard-output nil) nil "where" asdf-name)))))
         (when (and (not (string-empty-p installation-dir)) (file-directory-p installation-dir))
           (let ((lib-dir (concat installation-dir "/lib")))
             (when (file-directory-p lib-dir)
               lib-dir)))))
+     ;; We can use 'erl' to tell us where its lib-dir is
+     ((string-equal executable-name "erl")
+      (string-trim
+       (with-output-to-string
+         (call-process executable-name nil (list standard-output nil) nil
+                       "-noshell" "-eval" "io:put_chars(code:lib_dir()), erlang:halt(0)."))))
      (t
-      ;; We found an executable and we're not using ASDF
+      ;; We found an executable elixir we're not using ASDF
       ;; TODO: handle this case
       nil))))
 
