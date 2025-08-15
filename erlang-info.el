@@ -356,6 +356,9 @@
         ;; Link to a local function, e.g. "foo/1".
         ;; First character must be a lower-case character, to avoid false positives
         target)
+       ((string-match "^\\(?:[ct]:\\)?\\([^:./]+/[0-9]+\\)$" target)
+        ;; Link to a local callback or type
+        (match-string 1 target))
        ((string-match "^\\(?:[ct]:\\)?\\([^:/]+\\)[:.]\\([^:./]+/[0-9]+\\)$" target)
         ;; Link to a remote function, e.g. "foo:bar/1"
         ;; Or a link to a remote type or callback, prefixed with "c:" or "t:"
